@@ -122,7 +122,7 @@ test('Express API endpoints return expected status codes and payloads', async ()
     },
   };
 
-  const app = createApp(mockService, null);
+  const app = createApp(mockService);
   const server = app.listen(0);
   const port = server.address().port;
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -148,6 +148,11 @@ test('Express API endpoints return expected status codes and payloads', async ()
     assert.equal(okRes.status, 200);
     const okBody = await okRes.json();
     assert.equal(okBody.waiting[0].patient_name, 'TẠ THỊ LAN');
+
+    const spaRes = await fetch(`${baseUrl}/subclinical-queue/73c84d7a-b0a4-4e71-981a-ff8d94641cf1`);
+    assert.equal(spaRes.status, 200);
+    const spaHtml = await spaRes.text();
+    assert.equal(spaHtml.includes('<div id="root"></div>'), true);
   } finally {
     server.close();
   }
