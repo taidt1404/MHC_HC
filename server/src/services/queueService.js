@@ -29,7 +29,7 @@ function partitionQueueRows(rows) {
 
     if (item.active_flag === 2) {
       calling.push(item);
-    } else if (item.active_flag === 1 || item.active_flag === 4) {
+    } else if (item.active_flag === 1) {
       waiting.push(item);
     } else if (item.active_flag === 6) {
       waitingResult.push(item);
@@ -63,7 +63,7 @@ SELECT a.area_id,
 FROM area a
 LEFT JOIN (
     SELECT d.area_id,
-           COUNT(*) FILTER (WHERE d.active_flag IN (1, 4, 6)) AS waiting_count,
+           COUNT(*) FILTER (WHERE d.active_flag IN (1, 6)) AS waiting_count,
            COUNT(*) FILTER (WHERE d.active_flag = 2) AS calling_count
     FROM (
         SELECT DISTINCT ON (pq.area_id, pq.patient_id, COALESCE(pq.seq_num, 0))
@@ -75,7 +75,7 @@ LEFT JOIN (
         INNER JOIN area ar ON ar.area_id = pq.area_id
         INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
         WHERE pq.process_date >= now()::date - 7
-          AND pq.active_flag IN (1, 2, 4, 6)
+          AND pq.active_flag IN (1, 2, 6)
           AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
           AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
           AND (ar.area_type_rcd <> 'CLR' OR pq.work_queue_type_rcd = 'CLI')
@@ -86,8 +86,7 @@ LEFT JOIN (
               WHERE cpo.processing_queue_id = pq.processing_queue_id
                 AND cpo.creation_visit_id = pq.patient_visit_id
                 AND cpo.active_flag = 1
-                AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
-                AND (pq.work_queue_type_rcd = 'CLI' OR cpo.cpoe_placer_order_status_rcd <> 'SAVED')
+                AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'SAVED', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
                 AND (
                     pq.process_date = now()::date
                     OR (
@@ -139,7 +138,7 @@ WITH raw_waiting AS (
     FROM processing_queue pq
     INNER JOIN area ar ON ar.area_id = pq.area_id
     INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
-    WHERE pq.active_flag IN (1, 2, 4, 6)
+    WHERE pq.active_flag IN (1, 2, 6)
       AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
       AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
       AND pq.area_id = $1
@@ -152,8 +151,7 @@ WITH raw_waiting AS (
           WHERE cpo.processing_queue_id = pq.processing_queue_id
             AND cpo.creation_visit_id = pq.patient_visit_id
             AND cpo.active_flag = 1
-            AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
-            AND (pq.work_queue_type_rcd = 'CLI' OR cpo.cpoe_placer_order_status_rcd <> 'SAVED')
+            AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'SAVED', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
             AND (
                 pq.process_date = now()::date
                 OR (
