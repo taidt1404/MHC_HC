@@ -245,22 +245,22 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
-  background: linear-gradient(135deg, #0e7a3a 0%, #169c4c 100%);
-  border: 3px solid #0b5d2b;
+  background: linear-gradient(135deg, #c80815 0%, #e30613 100%);
+  border: 3px solid #991b1b;
   border-radius: 16px;
   padding: 22px 24px;
-  box-shadow: 0 8px 20px rgba(20, 143, 70, 0.28);
+  box-shadow: 0 8px 20px rgba(227, 6, 19, 0.28);
 }
 
 @keyframes cardFlash {
   0%, 100% {
-    border-color: var(--hc-red);
-    box-shadow: 0 0 28px rgba(227, 6, 19, 0.65);
+    border-color: #fde047;
+    box-shadow: 0 0 28px rgba(253, 224, 71, 0.85);
     transform: scale(1.01);
   }
   50% {
-    border-color: #169c4c;
-    box-shadow: 0 0 8px rgba(20, 143, 70, 0.25);
+    border-color: #991b1b;
+    box-shadow: 0 0 8px rgba(227, 6, 19, 0.25);
     transform: scale(1);
   }
 }
@@ -275,13 +275,13 @@ body {
   border-radius: 18px;
   background: #ffffff;
   color: var(--hc-red);
-  border: 3px solid var(--hc-sky-border);
+  border: 3px solid #fecaca;
   font-size: 4.1rem;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
 }
 
 .mhc-calling-info {
@@ -310,9 +310,9 @@ body {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  font-size: 1.45rem;
+  font-size: 1.65rem;
   font-weight: 800;
-  color: #e0f7fe;
+  color: #ffffff;
 }
 
 .mhc-empty-calling {
@@ -336,7 +336,7 @@ body {
 /* Waiting Table */
 .mhc-table-head {
   display: grid;
-  grid-template-columns: 100px 1fr 165px 185px;
+  grid-template-columns: 100px 1fr 215px 185px;
   align-items: center;
   padding: 12px 22px;
   background: var(--hc-sky-header);
@@ -359,7 +359,7 @@ body {
 
 .mhc-waiting-row {
   display: grid;
-  grid-template-columns: 100px 1fr 165px 185px;
+  grid-template-columns: 100px 1fr 215px 185px;
   align-items: center;
   padding: 15px 22px;
   border-bottom: 2px solid #e1f3fc;
@@ -427,9 +427,9 @@ body {
 }
 
 .col-dob {
-  font-size: 1.48rem;
-  font-weight: 800;
-  color: #155e75;
+  font-size: 1.95rem;
+  font-weight: 900;
+  color: #09351c;
   font-variant-numeric: tabular-nums;
 }
 
