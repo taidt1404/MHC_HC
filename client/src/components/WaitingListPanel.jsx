@@ -76,7 +76,6 @@ export default function WaitingListPanel({
                 <div className="col-name">
                   <GenderIcon gender={patient.gender} size={30} />
                   <span className="mhc-patient-name">{patient.patient_name}</span>
-                  {patient.ipd_queue_flag && <span className="mhc-tag mhc-tag-ipd">Nội trú</span>}
                 </div>
                 <div className="col-dob">{formatDob(patient)}</div>
                 <div className="col-status">

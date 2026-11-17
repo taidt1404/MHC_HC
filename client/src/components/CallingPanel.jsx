@@ -35,7 +35,6 @@ export default function CallingPanel({ callingList = [], highlightedKeys = new S
                   <div className="mhc-calling-meta">
                     <span>NS: {formatDob(patient)}</span>
                     {patient.priority && <span className="mhc-tag mhc-tag-priority">ƯU TIÊN</span>}
-                    {patient.ipd_queue_flag && <span className="mhc-tag mhc-tag-ipd">NỘI TRÚ</span>}
                   </div>
                 </div>
               </div>

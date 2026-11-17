@@ -72,12 +72,13 @@ LEFT JOIN (
                pq.seq_num,
                pq.active_flag
         FROM processing_queue pq
+        INNER JOIN area ar ON ar.area_id = pq.area_id
         INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
         WHERE pq.process_date >= now()::date - 7
           AND pq.active_flag IN (1, 2, 4, 6)
           AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
           AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
-          AND (pq.work_queue_type_rcd <> 'CLI' OR COALESCE(pq.ipd_queue_flag, FALSE) = FALSE)
+          AND (ar.area_type_rcd <> 'CLR' OR pq.work_queue_type_rcd = 'CLI')
           AND COALESCE(pq.ipd_consultation_flag, FALSE) = FALSE
           AND EXISTS (
               SELECT 1
@@ -136,12 +137,13 @@ WITH raw_waiting AS (
                 WHEN pq.active_flag = 6 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 1
                 ELSE -1 END) AS sort_rank
     FROM processing_queue pq
+    INNER JOIN area ar ON ar.area_id = pq.area_id
     INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
     WHERE pq.active_flag IN (1, 2, 4, 6)
       AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
       AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
       AND pq.area_id = $1
-      AND (pq.work_queue_type_rcd <> 'CLI' OR COALESCE(pq.ipd_queue_flag, FALSE) = FALSE)
+      AND (ar.area_type_rcd <> 'CLR' OR pq.work_queue_type_rcd = 'CLI')
       AND COALESCE(pq.ipd_consultation_flag, FALSE) = FALSE
       AND pq.process_date >= now()::date - 7
       AND EXISTS (
