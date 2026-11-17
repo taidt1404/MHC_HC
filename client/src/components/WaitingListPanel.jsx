@@ -61,8 +61,10 @@ export default function WaitingListPanel({
         {combined.length === 0 ? (
           <div className="mhc-empty-waiting">Hiện không có bệnh nhân trong danh sách chờ</div>
         ) : (
-          combined.map((patient) => {
-            const key = `${patient.patient_id}-${patient.seq_num}-${patient._group}`;
+          combined.map((patient, idx) => {
+            const key =
+              patient.processing_queue_id ||
+              `${patient.patient_id}-${patient.seq_num}-${patient._group}-${idx}`;
             return (
               <div key={key} className="mhc-waiting-row">
                 <div className="col-stt">

@@ -12,6 +12,7 @@ function partitionQueueRows(rows) {
 
   for (const row of rows) {
     const item = {
+      processing_queue_id: row.processing_queue_id || null,
       patient_id: row.patient_id,
       patient_name: row.patient_name,
       seq_num: row.seq_num,
@@ -60,34 +61,43 @@ SELECT a.area_id,
        COALESCE(q.calling_count, 0)::int AS calling_count
 FROM area a
 LEFT JOIN (
-    SELECT pq.area_id,
-           COUNT(*) FILTER (WHERE pq.active_flag IN (1, 4, 6)) AS waiting_count,
-           COUNT(*) FILTER (WHERE pq.active_flag = 2) AS calling_count
-    FROM processing_queue pq
-    INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
-    WHERE pq.process_date >= now()::date - 7
-      AND pq.active_flag IN (1, 2, 4, 6)
-      AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
-      AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
-      AND (pq.work_queue_type_rcd <> 'CLI' OR COALESCE(pq.ipd_queue_flag, FALSE) = FALSE)
-      AND COALESCE(pq.ipd_consultation_flag, FALSE) = FALSE
-      AND EXISTS (
-          SELECT 1
-          FROM cpoe_placer_order cpo
-          WHERE cpo.processing_queue_id = pq.processing_queue_id
-            AND cpo.creation_visit_id = pq.patient_visit_id
-            AND cpo.active_flag = 1
-            AND cpo.cpoe_placer_order_status_rcd <> 'NEW'
-            AND (
-                pq.process_date = now()::date
-                OR (
-                    pq.work_queue_type_rcd <> 'CLI'
-                    AND cpo.created_date_time >= now()::date
-                    AND cpo.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'RSLTD', 'CANCELLED')
+    SELECT d.area_id,
+           COUNT(*) FILTER (WHERE d.active_flag IN (1, 4, 6)) AS waiting_count,
+           COUNT(*) FILTER (WHERE d.active_flag = 2) AS calling_count
+    FROM (
+        SELECT DISTINCT ON (pq.area_id, pq.patient_id, COALESCE(pq.seq_num, 0))
+               pq.area_id,
+               pq.patient_id,
+               pq.seq_num,
+               pq.active_flag
+        FROM processing_queue pq
+        INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
+        WHERE pq.process_date >= now()::date - 7
+          AND pq.active_flag IN (1, 2, 4, 6)
+          AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
+          AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
+          AND (pq.work_queue_type_rcd <> 'CLI' OR COALESCE(pq.ipd_queue_flag, FALSE) = FALSE)
+          AND COALESCE(pq.ipd_consultation_flag, FALSE) = FALSE
+          AND EXISTS (
+              SELECT 1
+              FROM cpoe_placer_order cpo
+              WHERE cpo.processing_queue_id = pq.processing_queue_id
+                AND cpo.creation_visit_id = pq.patient_visit_id
+                AND cpo.active_flag = 1
+                AND cpo.cpoe_placer_order_status_rcd <> 'NEW'
+                AND (
+                    pq.process_date = now()::date
+                    OR (
+                        pq.work_queue_type_rcd <> 'CLI'
+                        AND cpo.created_date_time >= now()::date
+                        AND cpo.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'RSLTD', 'CANCELLED')
+                    )
                 )
-            )
-      )
-    GROUP BY pq.area_id
+          )
+        ORDER BY pq.area_id, pq.patient_id, COALESCE(pq.seq_num, 0),
+                 (CASE WHEN pq.active_flag = 2 THEN 3 WHEN pq.active_flag = 1 THEN 2 ELSE 1 END) DESC
+    ) d
+    GROUP BY d.area_id
 ) q ON q.area_id = a.area_id
 WHERE a.active_flag = 1
   AND a.area_type_rcd IN ('CLR', 'RAR', 'BLD', 'WAI')
@@ -106,7 +116,7 @@ LIMIT 1
 `;
 
 const GET_QUEUE_BY_AREA_SQL = `
-WITH waiting AS (
+WITH raw_waiting AS (
     SELECT pq.processing_queue_id,
            pq.patient_id,
            pq.seq_num,
@@ -115,7 +125,15 @@ WITH waiting AS (
            pq.schedule_date_time,
            pq.recomment,
            pq.last_result_date_time,
-           pq.ipd_queue_flag
+           pq.ipd_queue_flag,
+           (CASE
+                WHEN pq.active_flag = 2 AND pq.priority = TRUE THEN 6
+                WHEN pq.active_flag = 2 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 5
+                WHEN pq.active_flag = 1 AND pq.priority = TRUE THEN 4
+                WHEN pq.active_flag = 1 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 3
+                WHEN pq.active_flag = 6 AND pq.priority = TRUE THEN 2
+                WHEN pq.active_flag = 6 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 1
+                ELSE -1 END) AS sort_rank
     FROM processing_queue pq
     INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
     WHERE pq.active_flag IN (1, 2, 4, 6)
@@ -141,8 +159,15 @@ WITH waiting AS (
                 )
             )
       )
+),
+waiting AS (
+    SELECT DISTINCT ON (rw.patient_id, COALESCE(rw.seq_num, 0))
+           rw.*
+    FROM raw_waiting rw
+    ORDER BY rw.patient_id, COALESCE(rw.seq_num, 0), rw.sort_rank DESC, rw.last_result_date_time NULLS LAST
 )
-(SELECT p.full_name AS patient_name,
+(SELECT w.processing_queue_id,
+        p.full_name AS patient_name,
         p.gender,
         p.date_of_birth,
         EXTRACT(YEAR FROM p.date_of_birth)::int AS year_of_birth,
@@ -156,18 +181,12 @@ WITH waiting AS (
         date_part('year', age(now()::date, p.date_of_birth::date))::int AS age
  FROM waiting w
  INNER JOIN person p ON w.patient_id = p.id
- ORDER BY (CASE
-               WHEN w.active_flag = 2 AND w.priority = TRUE THEN 6
-               WHEN w.active_flag = 2 AND (w.priority ISNULL OR w.priority = FALSE) THEN 5
-               WHEN w.active_flag = 1 AND w.priority = TRUE THEN 4
-               WHEN w.active_flag = 1 AND (w.priority ISNULL OR w.priority = FALSE) THEN 3
-               WHEN w.active_flag = 6 AND w.priority = TRUE THEN 2
-               WHEN w.active_flag = 6 AND (w.priority ISNULL OR w.priority = FALSE) THEN 1
-               ELSE -1 END) DESC,
+ ORDER BY w.sort_rank DESC,
           w.last_result_date_time,
           COALESCE(w.seq_num, 0))
 UNION ALL
-(SELECT p.full_name AS patient_name,
+(SELECT pq.processing_queue_id,
+        p.full_name AS patient_name,
         p.gender,
         p.date_of_birth,
         EXTRACT(YEAR FROM p.date_of_birth)::int AS year_of_birth,

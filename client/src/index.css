@@ -139,7 +139,7 @@ body {
 .mhc-main-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: 42% 58%;
+  grid-template-columns: 5fr 7fr;
   gap: 20px;
   padding: 20px 24px;
   overflow: hidden;

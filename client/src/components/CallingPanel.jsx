@@ -16,9 +16,10 @@ export default function CallingPanel({ callingList = [], highlightedKeys = new S
             <p>Vui lòng chờ gọi số theo thứ tự</p>
           </div>
         ) : (
-          callingList.map((patient) => {
-            const key = `${patient.patient_id}-${patient.seq_num}`;
-            const isHighlighted = highlightedKeys.has(key);
+          callingList.map((patient, idx) => {
+            const flashKey = `${patient.patient_id}-${patient.seq_num}`;
+            const key = patient.processing_queue_id || `${flashKey}-${idx}`;
+            const isHighlighted = highlightedKeys.has(flashKey);
             return (
               <div
                 key={key}
