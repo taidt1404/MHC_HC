@@ -1,4 +1,5 @@
 import React from 'react';
+import GenderIcon, { formatDob } from './GenderIcon';
 
 export default function CallingPanel({ callingList = [], highlightedKeys = new Set() }) {
   return (
@@ -27,12 +28,12 @@ export default function CallingPanel({ callingList = [], highlightedKeys = new S
               >
                 <div className="mhc-calling-seq">{patient.seq_num || '--'}</div>
                 <div className="mhc-calling-info">
-                  <div className="mhc-calling-name">{patient.patient_name}</div>
+                  <div className="mhc-calling-name-row">
+                    <GenderIcon gender={patient.gender} size={32} />
+                    <div className="mhc-calling-name">{patient.patient_name}</div>
+                  </div>
                   <div className="mhc-calling-meta">
-                    <span>
-                      {patient.age ? `${patient.age} tuổi` : ''}
-                      {patient.year_of_birth ? ` (${patient.year_of_birth})` : ''}
-                    </span>
+                    <span>NS: {formatDob(patient)}</span>
                     {patient.priority && <span className="mhc-tag mhc-tag-priority">ƯU TIÊN</span>}
                     {patient.ipd_queue_flag && <span className="mhc-tag mhc-tag-ipd">NỘI TRÚ</span>}
                   </div>

@@ -291,8 +291,14 @@ body {
   gap: 8px;
 }
 
+.mhc-calling-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .mhc-calling-name {
-  font-size: 2.55rem;
+  font-size: 2.45rem;
   font-weight: 900;
   color: #ffffff;
   line-height: 1.15;
@@ -330,7 +336,7 @@ body {
 /* Waiting Table */
 .mhc-table-head {
   display: grid;
-  grid-template-columns: 115px 1fr 120px 190px;
+  grid-template-columns: 100px 1fr 165px 185px;
   align-items: center;
   padding: 12px 22px;
   background: var(--hc-sky-header);
@@ -353,7 +359,7 @@ body {
 
 .mhc-waiting-row {
   display: grid;
-  grid-template-columns: 115px 1fr 120px 190px;
+  grid-template-columns: 100px 1fr 165px 185px;
   align-items: center;
   padding: 15px 22px;
   border-bottom: 2px solid #e1f3fc;
@@ -387,21 +393,44 @@ body {
 .col-name {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding-right: 12px;
 }
 
+.mhc-gender-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mhc-gender-icon.male {
+  color: #0284c7;
+  background: #e0f2fe;
+  border: 1.5px solid #7dd3fc;
+}
+
+.mhc-gender-icon.female {
+  color: #e11d48;
+  background: #ffe4e6;
+  border: 1.5px solid #fda4af;
+}
+
 .mhc-patient-name {
-  font-size: 2rem;
+  font-size: 1.95rem;
   font-weight: 900;
   color: #09351c;
   text-transform: uppercase;
 }
 
-.col-age {
-  font-size: 1.55rem;
+.col-dob {
+  font-size: 1.48rem;
   font-weight: 800;
   color: #155e75;
+  font-variant-numeric: tabular-nums;
 }
 
 .mhc-tag {

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import GenderIcon, { formatDob } from './GenderIcon';
 
 export default function WaitingListPanel({
   waitingList = [],
@@ -53,7 +54,7 @@ export default function WaitingListPanel({
       <div className="mhc-table-head">
         <div className="col-stt">STT</div>
         <div className="col-name">HỌ VÀ TÊN BỆNH NHÂN</div>
-        <div className="col-age">TUỔI</div>
+        <div className="col-dob">NGÀY SINH</div>
         <div className="col-status">TRẠNG THÁI</div>
       </div>
 
@@ -73,12 +74,11 @@ export default function WaitingListPanel({
                   </span>
                 </div>
                 <div className="col-name">
+                  <GenderIcon gender={patient.gender} size={30} />
                   <span className="mhc-patient-name">{patient.patient_name}</span>
                   {patient.ipd_queue_flag && <span className="mhc-tag mhc-tag-ipd">Nội trú</span>}
                 </div>
-                <div className="col-age">
-                  {patient.age ? `${patient.age} tuổi` : '--'}
-                </div>
+                <div className="col-dob">{formatDob(patient)}</div>
                 <div className="col-status">
                   {patient._group === 'WAITING_RESULT' ? (
                     <span className="mhc-status-pill result">Chờ KQ CLS</span>
