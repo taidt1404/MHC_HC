@@ -36,11 +36,20 @@ export default function HeaderBar({
 
   return (
     <header className="mhc-header">
-      <div className="mhc-header-left">
-        <Link to="/" className="mhc-hospital-badge" title="Danh sách phòng">
-          BỆNH VIỆN ĐA KHOA HÙNG CƯỜNG
+      <div className="mhc-header-brand">
+        <Link to="/" className="mhc-logo-link" title="Danh sách phòng">
+          <img
+            src="/logo-hungcuong.jpg"
+            alt="Logo Bệnh viện Hùng Cường"
+            className="mhc-logo-img"
+          />
         </Link>
-        <h1 className="mhc-room-title">{areaName || 'ĐANG TẢI PHÒNG...'}</h1>
+        <div className="mhc-header-left">
+          <Link to="/" className="mhc-hospital-badge" title="Danh sách phòng">
+            BỆNH VIỆN ĐA KHOA HÙNG CƯỜNG
+          </Link>
+          <h1 className="mhc-room-title">{areaName || 'ĐANG TẢI PHÒNG...'}</h1>
+        </div>
       </div>
 
       <div className="mhc-header-right">

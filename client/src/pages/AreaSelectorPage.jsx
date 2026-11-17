@@ -52,9 +52,16 @@ export default function AreaSelectorPage() {
   return (
     <div className="mhc-selector-page">
       <div className="mhc-selector-header">
-        <div>
-          <div className="mhc-selector-subtitle">BỆNH VIỆN ĐA KHOA HÙNG CƯỜNG</div>
-          <h1>HỆ THỐNG MÀN HÌNH CHỜ PHÒNG KHÁM &amp; CẬN LÂM SÀNG</h1>
+        <div className="mhc-selector-brand">
+          <img
+            src="/logo-hungcuong.jpg"
+            alt="Logo Bệnh viện Hùng Cường"
+            className="mhc-selector-logo"
+          />
+          <div>
+            <div className="mhc-selector-subtitle">CÔNG TY CỔ PHẦN BỆNH VIỆN HÙNG CƯỜNG</div>
+            <h1>HỆ THỐNG MÀN HÌNH CHỜ PHÒNG KHÁM &amp; CẬN LÂM SÀNG</h1>
+          </div>
         </div>
         <div className="mhc-selector-controls">
           <input
