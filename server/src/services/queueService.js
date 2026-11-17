@@ -84,13 +84,12 @@ LEFT JOIN (
               WHERE cpo.processing_queue_id = pq.processing_queue_id
                 AND cpo.creation_visit_id = pq.patient_visit_id
                 AND cpo.active_flag = 1
-                AND cpo.cpoe_placer_order_status_rcd <> 'NEW'
+                AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
                 AND (
                     pq.process_date = now()::date
                     OR (
                         pq.work_queue_type_rcd <> 'CLI'
                         AND cpo.created_date_time >= now()::date
-                        AND cpo.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'RSLTD', 'CANCELLED')
                     )
                 )
           )
@@ -149,13 +148,12 @@ WITH raw_waiting AS (
           WHERE cpo.processing_queue_id = pq.processing_queue_id
             AND cpo.creation_visit_id = pq.patient_visit_id
             AND cpo.active_flag = 1
-            AND cpo.cpoe_placer_order_status_rcd <> 'NEW'
+            AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
             AND (
                 pq.process_date = now()::date
                 OR (
                     pq.work_queue_type_rcd <> 'CLI'
                     AND cpo.created_date_time >= now()::date
-                    AND cpo.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'RSLTD', 'CANCELLED')
                 )
             )
       )
