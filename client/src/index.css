@@ -399,6 +399,12 @@ body {
   border: 1px solid rgba(245, 158, 11, 0.45);
 }
 
+.mhc-status-pill.has-result {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
 .mhc-empty-waiting {
   padding: 60px 24px;
   text-align: center;

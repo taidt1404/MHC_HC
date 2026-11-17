@@ -80,6 +80,8 @@ export default function WaitingListPanel({
                 <div className="col-status">
                   {patient._group === 'WAITING_RESULT' ? (
                     <span className="mhc-status-pill result">Chờ KQ CLS</span>
+                  ) : patient.active_flag === 4 ? (
+                    <span className="mhc-status-pill has-result">Đã có kết quả</span>
                   ) : patient.priority ? (
                     <span className="mhc-status-pill priority">Ưu tiên</span>
                   ) : (
