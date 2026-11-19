@@ -15,7 +15,60 @@
       .trim();
   }
 
+  // Only run on Outpatient Examination (Khám bệnh ngoại trú) screens!
+  function isExaminationScreen() {
+    const url = (window.location.href || '').toLowerCase();
+    const blacklist = [
+      'emr-', 'storage', 'sign', 'ky-so',
+      'tiep-nhan', 'reception',
+      'thanh-toan', 'cashier', 'vien-phi',
+      'duoc', 'pharmacy', 'kho',
+      'xet-nghiem', 'cdha', 'can-lam-sang',
+      'noi-tru', 'ipd',
+      'bao-cao', 'report',
+      'he-thong', 'system', 'danh-muc'
+    ];
+    for (const b of blacklist) {
+      if (url.includes(b)) return false;
+    }
+
+    // Check Breadcrumb
+    const bc = document.querySelector('.el-breadcrumb, [class*="breadcrumb"], .breadcrumb');
+    if (bc) {
+      const bcText = removeAccents(bc.innerText || '');
+      if (bcText.includes('kham benh')) return true;
+      if (bcText.length > 5 && !bcText.includes('kham benh')) return false;
+    }
+
+    // Check Tabs
+    const tabs = document.querySelectorAll('.el-tabs__item, [role="tab"], .nav-tabs li, .tab-title');
+    if (tabs.length > 0) {
+      let isExamTab = false;
+      let isOtherTab = false;
+      tabs.forEach((t) => {
+        const txt = removeAccents(t.innerText || '');
+        if (txt.includes('tham kham ngoai tru') || txt.includes('thong tin ngoai tru')) {
+          isExamTab = true;
+        }
+        if (txt.includes('benh an dien tu') || txt.includes('danh sach benh nhan') || txt.includes('tiep nhan')) {
+          isOtherTab = true;
+        }
+      });
+      if (isExamTab) return true;
+      if (isOtherTab) return false;
+    }
+
+    // Check body markers
+    const bodyText = removeAccents(document.body.innerText || '');
+    if (bodyText.includes('danh sach tham kham ngoai tru') || bodyText.includes('chi tiet thong tin ngoai tru')) {
+      return true;
+    }
+
+    return false;
+  }
+
   function showToast(message, isSuccess = true) {
+    if (!isExaminationScreen()) return;
     let toast = document.getElementById('mhc-sync-toast');
     if (!toast) {
       toast = document.createElement('div');
@@ -194,6 +247,7 @@
   // 1. Detection via Click
   document.addEventListener('click', (e) => {
     try {
+      if (!isExaminationScreen()) return;
       const target = e.target;
       if (!target) return;
 
@@ -243,6 +297,14 @@
 
   // 2. Inject Buttons and Auto-trigger when viewing patient detail
   function injectOrTriggerBanner() {
+    if (!isExaminationScreen()) {
+      const qBtn = document.getElementById('mhc-quick-call-btn');
+      if (qBtn) qBtn.remove();
+      const cBtn = document.getElementById('mhc-cancel-call-btn');
+      if (cBtn) cBtn.remove();
+      return;
+    }
+
     const raw = document.body.innerText || '';
     const norm = removeAccents(raw);
 
@@ -335,6 +397,13 @@
 
   let throttleTimer = null;
   const observer = new MutationObserver(() => {
+    if (!isExaminationScreen()) {
+      const qBtn = document.getElementById('mhc-quick-call-btn');
+      if (qBtn) qBtn.remove();
+      const cBtn = document.getElementById('mhc-cancel-call-btn');
+      if (cBtn) cBtn.remove();
+      return;
+    }
     if (throttleTimer) return;
     throttleTimer = setTimeout(() => {
       throttleTimer = null;
