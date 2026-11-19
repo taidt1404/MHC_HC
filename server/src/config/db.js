@@ -12,7 +12,7 @@ function createDbPool() {
         password: process.env.DB_PASSWORD || '',
       };
 
-  return new Pool({
+  const pool = new Pool({
     ...config,
     max: 10,
     idleTimeoutMillis: 30000,
@@ -20,6 +20,12 @@ function createDbPool() {
     // Ensure session is read-only for safety
     options: '-c default_transaction_read_only=on',
   });
+
+  pool.on('error', (err) => {
+    console.error('[MHC DB Pool Error]', err.message);
+  });
+
+  return pool;
 }
 
 module.exports = { createDbPool };

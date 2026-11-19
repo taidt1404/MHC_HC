@@ -12,6 +12,9 @@ export default function QueueScreenPage() {
   const [notFoundError, setNotFoundError] = useState(null);
   const [isOffline, setIsOffline] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
+
   const [highlightedKeys, setHighlightedKeys] = useState(() => new Set());
   const prevCallingKeysRef = useRef(null);
 
@@ -41,7 +44,7 @@ export default function QueueScreenPage() {
           }
 
           if (newlyCalled.length > 0) {
-            if (soundEnabled) {
+            if (soundEnabledRef.current) {
               playDingDong();
             }
             setHighlightedKeys(new Set(newlyCalled));
@@ -68,7 +71,7 @@ export default function QueueScreenPage() {
       mounted = false;
       clearInterval(timer);
     };
-  }, [areaId, soundEnabled]);
+  }, [areaId]);
 
   const handleToggleSound = () => {
     const next = !soundEnabled;

@@ -4,6 +4,17 @@ function isValidUuid(value) {
   return typeof value === 'string' && UUID_REGEX.test(value.trim());
 }
 
+function removeAccents(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .trim();
+}
+
 function partitionQueueRows(rows) {
   const calling = [];
   const waiting = [];
@@ -29,7 +40,7 @@ function partitionQueueRows(rows) {
 
     if (item.active_flag === 2) {
       calling.push(item);
-    } else if (item.active_flag === 1) {
+    } else if (item.active_flag === 1 || item.active_flag === 4) {
       waiting.push(item);
     } else if (item.active_flag === 6) {
       waitingResult.push(item);
@@ -63,7 +74,7 @@ SELECT a.area_id,
 FROM area a
 LEFT JOIN (
     SELECT d.area_id,
-           COUNT(*) FILTER (WHERE d.active_flag IN (1, 6)) AS waiting_count,
+           COUNT(*) FILTER (WHERE d.active_flag IN (1, 4, 6)) AS waiting_count,
            COUNT(*) FILTER (WHERE d.active_flag = 2) AS calling_count
     FROM (
         SELECT DISTINCT ON (pq.area_id, pq.patient_id, COALESCE(pq.seq_num, 0))
@@ -75,7 +86,7 @@ LEFT JOIN (
         INNER JOIN area ar ON ar.area_id = pq.area_id
         INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
         WHERE pq.process_date >= now()::date - 7
-          AND pq.active_flag IN (1, 2, 6)
+          AND pq.active_flag IN (1, 2, 4, 6)
           AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
           AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
           AND (ar.area_type_rcd <> 'CLR' OR pq.work_queue_type_rcd = 'CLI')
@@ -86,17 +97,22 @@ LEFT JOIN (
               WHERE cpo.processing_queue_id = pq.processing_queue_id
                 AND cpo.creation_visit_id = pq.patient_visit_id
                 AND cpo.active_flag = 1
-                AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'SAVED', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
                 AND (
-                    pq.process_date = now()::date
+                    (pq.active_flag = 4 AND ar.area_type_rcd = 'CLR' AND pq.process_date = now()::date)
                     OR (
-                        pq.work_queue_type_rcd <> 'CLI'
-                        AND cpo.created_date_time >= now()::date
+                        cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'SAVED', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
+                        AND (
+                            pq.process_date = now()::date
+                            OR (
+                                pq.work_queue_type_rcd <> 'CLI'
+                                AND cpo.created_date_time >= now()::date
+                            )
+                        )
                     )
                 )
           )
         ORDER BY pq.area_id, pq.patient_id, COALESCE(pq.seq_num, 0),
-                 (CASE WHEN pq.active_flag = 2 THEN 3 WHEN pq.active_flag = 1 THEN 2 ELSE 1 END) DESC
+                 (CASE WHEN pq.active_flag = 2 THEN 4 WHEN pq.active_flag = 1 THEN 3 WHEN pq.active_flag = 4 THEN 2 ELSE 1 END) DESC
     ) d
     GROUP BY d.area_id
 ) q ON q.area_id = a.area_id
@@ -132,13 +148,14 @@ WITH raw_waiting AS (
                 WHEN pq.active_flag = 2 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 5
                 WHEN pq.active_flag = 1 AND pq.priority = TRUE THEN 4
                 WHEN pq.active_flag = 1 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 3
-                WHEN pq.active_flag = 6 AND pq.priority = TRUE THEN 2
-                WHEN pq.active_flag = 6 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 1
+                WHEN pq.active_flag = 4 THEN 2
+                WHEN pq.active_flag = 6 AND pq.priority = TRUE THEN 1
+                WHEN pq.active_flag = 6 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 0
                 ELSE -1 END) AS sort_rank
     FROM processing_queue pq
     INNER JOIN area ar ON ar.area_id = pq.area_id
     INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
-    WHERE pq.active_flag IN (1, 2, 6)
+    WHERE pq.active_flag IN (1, 2, 4, 6)
       AND (pq.active_status = true OR pq.work_queue_type_rcd <> 'CLI')
       AND (pv.health_contract_id ISNULL OR pv.health_contract_receive_date_time NOTNULL)
       AND pq.area_id = $1
@@ -151,12 +168,17 @@ WITH raw_waiting AS (
           WHERE cpo.processing_queue_id = pq.processing_queue_id
             AND cpo.creation_visit_id = pq.patient_visit_id
             AND cpo.active_flag = 1
-            AND cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'SAVED', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
             AND (
-                pq.process_date = now()::date
+                (pq.active_flag = 4 AND ar.area_type_rcd = 'CLR' AND pq.process_date = now()::date)
                 OR (
-                    pq.work_queue_type_rcd <> 'CLI'
-                    AND cpo.created_date_time >= now()::date
+                    cpo.cpoe_placer_order_status_rcd NOT IN ('NEW', 'SAVED', 'COMPLETED', 'RSLTD', 'VERIFIED', 'CANCELLED')
+                    AND (
+                        pq.process_date = now()::date
+                        OR (
+                            pq.work_queue_type_rcd <> 'CLI'
+                            AND cpo.created_date_time >= now()::date
+                        )
+                    )
                 )
             )
       )
@@ -213,6 +235,8 @@ UNION ALL
 `;
 
 function createQueueService(dbPool, cache) {
+  const activeResultCalls = new Map();
+
   async function checkHealth() {
     await dbPool.query('SELECT 1');
     return {
@@ -220,6 +244,44 @@ function createQueueService(dbPool, cache) {
       db: true,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  async function resolveAreaId(identifier) {
+    if (!identifier) return null;
+    const trimmed = String(identifier).trim();
+    if (isValidUuid(trimmed)) return trimmed;
+
+    const res = await dbPool.query(
+      `SELECT area_id FROM area 
+       WHERE active_flag = 1 
+         AND area_type_rcd IN ('CLR', 'RAR', 'BLD', 'WAI')
+         AND (short_code = $1 OR area_name_l ILIKE '%' || $1 || '%')
+       ORDER BY (short_code = $1) DESC,
+                (CASE WHEN area_type_rcd = 'CLR' THEN 1 ELSE 2 END),
+                area_name_l
+       LIMIT 1`,
+      [trimmed]
+    );
+    return res.rows.length > 0 ? res.rows[0].area_id : null;
+  }
+
+  function setResultCalling(areaId, { patientName, seqNum, patientId }) {
+    activeResultCalls.set(areaId, {
+      patient_name: patientName ? patientName.trim() : null,
+      seq_num: seqNum ? String(seqNum).trim() : null,
+      patient_id: patientId ? String(patientId).trim() : null,
+      called_at: Date.now(),
+    });
+    cache.del(`queue:${areaId}`);
+  }
+
+  function clearResultCalling(areaId) {
+    activeResultCalls.delete(areaId);
+    cache.del(`queue:${areaId}`);
+  }
+
+  function getActiveResultCalling(areaId) {
+    return activeResultCalls.get(areaId) || null;
   }
 
   async function listAreas() {
@@ -246,6 +308,38 @@ function createQueueService(dbPool, cache) {
     const queueRes = await dbPool.query(GET_QUEUE_BY_AREA_SQL, [areaId]);
     const partitioned = partitionQueueRows(queueRes.rows);
 
+    const activeResultCall = activeResultCalls.get(areaId);
+    if (activeResultCall) {
+      if (Date.now() - activeResultCall.called_at > 45 * 60 * 1000) {
+        activeResultCalls.delete(areaId);
+      } else {
+        const targetIdx = partitioned.waiting.findIndex((p) => {
+          if (p.active_flag !== 4) return false;
+          if (activeResultCall.patient_id && p.patient_id === activeResultCall.patient_id) return true;
+          if (activeResultCall.seq_num && String(p.seq_num).replace(/^0+/, '') === String(activeResultCall.seq_num).replace(/^0+/, '')) return true;
+          if (activeResultCall.patient_name && p.patient_name) {
+            const pName = removeAccents(p.patient_name);
+            const reqName = removeAccents(activeResultCall.patient_name);
+            if (pName === reqName || pName.includes(reqName) || reqName.includes(pName)) return true;
+          }
+          return false;
+        });
+
+        if (targetIdx !== -1) {
+          const [callingItem] = partitioned.waiting.splice(targetIdx, 1);
+          callingItem.active_flag = 2;
+          callingItem.is_result_calling = true;
+          partitioned.calling.unshift(callingItem);
+          partitioned.summary.calling_count = partitioned.calling.length;
+          partitioned.summary.waiting_count = partitioned.waiting.length;
+        } else {
+          if (Date.now() - activeResultCall.called_at > 10000) {
+            activeResultCalls.delete(areaId);
+          }
+        }
+      }
+    }
+
     const payload = {
       area: {
         area_id: areaRow.area_id,
@@ -270,6 +364,10 @@ function createQueueService(dbPool, cache) {
     checkHealth,
     listAreas,
     getQueueByAreaId,
+    resolveAreaId,
+    setResultCalling,
+    clearResultCalling,
+    getActiveResultCalling,
   };
 }
 

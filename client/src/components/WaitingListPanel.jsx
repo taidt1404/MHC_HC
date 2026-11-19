@@ -5,44 +5,10 @@ export default function WaitingListPanel({
   waitingList = [],
   waitingResultList = [],
 }) {
-  const scrollRef = useRef(null);
   const combined = [
     ...waitingList.map((item) => ({ ...item, _group: 'WAITING' })),
     ...waitingResultList.map((item) => ({ ...item, _group: 'WAITING_RESULT' })),
   ];
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return undefined;
-
-    let direction = 1;
-    let pauseTicks = 0;
-
-    const interval = setInterval(() => {
-      const maxScroll = el.scrollHeight - el.clientHeight;
-      if (maxScroll <= 10) {
-        el.scrollTop = 0;
-        return;
-      }
-
-      if (pauseTicks > 0) {
-        pauseTicks -= 1;
-        return;
-      }
-
-      el.scrollTop += direction * 1.5;
-
-      if (el.scrollTop >= maxScroll - 2) {
-        direction = -1;
-        pauseTicks = 50; // Pause ~2.5s at bottom
-      } else if (el.scrollTop <= 0) {
-        direction = 1;
-        pauseTicks = 50; // Pause ~2.5s at top
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [combined.length]);
 
   return (
     <section className="mhc-panel mhc-waiting-panel">
@@ -53,12 +19,10 @@ export default function WaitingListPanel({
 
       <div className="mhc-table-head">
         <div className="col-stt">STT</div>
-        <div className="col-name">HỌ VÀ TÊN BỆNH NHÂN</div>
-        <div className="col-dob">NGÀY SINH</div>
-        <div className="col-status">TRẠNG THÁI</div>
+        <div className="col-patient">HỌ VÀ TÊN BỆNH NHÂN &amp; NGÀY SINH</div>
       </div>
 
-      <div className="mhc-waiting-body" ref={scrollRef}>
+      <div className="mhc-waiting-body">
         {combined.length === 0 ? (
           <div className="mhc-empty-waiting">Hiện không có bệnh nhân trong danh sách chờ</div>
         ) : (
@@ -66,28 +30,32 @@ export default function WaitingListPanel({
             const key =
               patient.processing_queue_id ||
               `${patient.patient_id}-${patient.seq_num}-${patient._group}-${idx}`;
+            const isHasResult = patient.active_flag === 4;
             return (
-              <div key={key} className="mhc-waiting-row">
+              <div key={key} className={`mhc-waiting-row ${isHasResult ? 'has-result' : ''}`}>
                 <div className="col-stt">
                   <span className={`mhc-seq-badge ${patient.priority ? 'priority' : ''}`}>
                     {patient.seq_num || '--'}
                   </span>
                 </div>
-                <div className="col-name">
-                  <GenderIcon gender={patient.gender} size={30} />
-                  <span className="mhc-patient-name">{patient.patient_name}</span>
-                </div>
-                <div className="col-dob">{formatDob(patient)}</div>
-                <div className="col-status">
-                  {patient._group === 'WAITING_RESULT' ? (
-                    <span className="mhc-status-pill result">Chờ KQ CLS</span>
-                  ) : patient.active_flag === 4 ? (
-                    <span className="mhc-status-pill has-result">Đã có kết quả</span>
-                  ) : patient.priority ? (
-                    <span className="mhc-status-pill priority">Ưu tiên</span>
-                  ) : (
-                    <span className="mhc-status-pill waiting">Chờ thực hiện</span>
-                  )}
+                <div className="col-patient">
+                  <div className="mhc-patient-main">
+                    <GenderIcon gender={patient.gender} size={34} />
+                    <span className="mhc-patient-name">{patient.patient_name}</span>
+                    {patient.priority && (
+                      <span className="mhc-tag mhc-tag-priority">ƯU TIÊN</span>
+                    )}
+                    {isHasResult && (
+                      <span className="mhc-tag mhc-tag-has-result">ĐÃ CÓ KQ</span>
+                    )}
+                    {patient._group === 'WAITING_RESULT' && (
+                      <span className="mhc-tag mhc-tag-result">CHỜ KQ CLS</span>
+                    )}
+                  </div>
+                  <div className="mhc-patient-sub">
+                    <span className="mhc-dob-text">NS: {formatDob(patient)}</span>
+                    {patient.age ? <span className="mhc-age-text">({patient.age} tuổi)</span> : null}
+                  </div>
                 </div>
               </div>
             );

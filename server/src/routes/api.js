@@ -59,6 +59,58 @@ function createApiRouter(queueService) {
     }
   });
 
+  router.post('/queue/calling-result', async (req, res) => {
+    try {
+      const { areaId, patientName, seqNum, patientId } = req.body || {};
+      if (!areaId) {
+        return res.status(400).json({
+          error: 'MISSING_AREA_ID',
+          message: 'Vui lòng cung cấp mã hoặc tên phòng (areaId).',
+        });
+      }
+
+      const resolvedAreaId = await queueService.resolveAreaId(areaId);
+      if (!resolvedAreaId) {
+        return res.status(404).json({
+          error: 'AREA_NOT_FOUND',
+          message: `Không tìm thấy phòng tương ứng với mã: ${areaId}`,
+        });
+      }
+
+      queueService.setResultCalling(resolvedAreaId, { patientName, seqNum, patientId });
+      return res.json({
+        success: true,
+        message: 'Đã ghi nhận gọi trả kết quả thành công',
+        areaId: resolvedAreaId,
+        patientName,
+        seqNum,
+      });
+    } catch (err) {
+      return res.status(500).json({
+        error: 'SERVER_ERROR',
+        message: err.message,
+      });
+    }
+  });
+
+  router.post('/queue/clear-calling-result', async (req, res) => {
+    try {
+      const { areaId } = req.body || {};
+      if (areaId) {
+        const resolvedAreaId = await queueService.resolveAreaId(areaId);
+        if (resolvedAreaId) {
+          queueService.clearResultCalling(resolvedAreaId);
+        }
+      }
+      return res.json({ success: true });
+    } catch (err) {
+      return res.status(500).json({
+        error: 'SERVER_ERROR',
+        message: err.message,
+      });
+    }
+  });
+
   return router;
 }
 

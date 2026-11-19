@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "MHC - Tự Động Gọi Trả Kết Quả",
+  "version": "1.0.1",
+  "description": "Tự động đồng bộ bệnh nhân ĐÃ CÓ KẾT QUẢ từ HIS sang màn hình chờ MHC",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cài đặt MHC Gọi Trả Kết Quả"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

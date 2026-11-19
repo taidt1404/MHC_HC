@@ -1,3 +1,27 @@
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/BeVietnamPro-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/BeVietnamPro-SemiBold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/BeVietnamPro-Bold.ttf') format('truetype');
+}
+
 :root {
   --hc-green-dark: #0c6b32;
   --hc-green: #148f46;
@@ -15,14 +39,17 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', Tahoma, Arial, sans-serif;
 }
 
 body {
-  font-family: Arial, 'Helvetica Neue', sans-serif;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', Tahoma, Arial, sans-serif;
   background-color: var(--hc-sky-bg);
   color: var(--hc-text-dark);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Fullscreen TV Layout */
@@ -152,7 +179,7 @@ body {
   background: var(--hc-red);
   color: #fff;
   font-size: 0.85rem;
-  font-weight: 800;
+  font-weight: 700;
   padding: 6px 12px;
   border-radius: 8px;
 }
@@ -334,24 +361,32 @@ body {
   opacity: 0.75;
 }
 
-/* Waiting Table */
+/* Waiting Table - 2 Columns (STT & Ho Ten / Ngay Sinh) */
 .mhc-table-head {
   display: grid;
-  grid-template-columns: 100px 1fr 215px 185px;
+  grid-template-columns: 130px 1fr;
   align-items: center;
-  padding: 14px 22px;
+  padding: 14px 24px;
   background: var(--hc-sky-header);
   color: #094a25;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
   border-bottom: 2px solid var(--hc-sky-border);
 }
 
 .mhc-table-head > div {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #094a25;
   letter-spacing: 0.3px;
+}
+
+.mhc-table-head .col-stt {
+  text-align: center;
+}
+
+.mhc-table-head .col-patient {
+  padding-left: 16px;
 }
 
 .mhc-waiting-body {
@@ -367,9 +402,9 @@ body {
 
 .mhc-waiting-row {
   display: grid;
-  grid-template-columns: 100px 1fr 215px 185px;
+  grid-template-columns: 130px 1fr;
   align-items: center;
-  padding: 15px 22px;
+  padding: 14px 24px;
   border-bottom: 2px solid #e1f3fc;
   transition: background 0.2s;
 }
@@ -378,18 +413,24 @@ body {
   background: #f2faff;
 }
 
+.mhc-waiting-row .col-stt {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .mhc-seq-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 78px;
-  height: 58px;
+  min-width: 88px;
+  height: 64px;
   background: var(--hc-green);
-  border: 2px solid var(--hc-green-dark);
+  border: 2.5px solid var(--hc-green-dark);
   color: #ffffff;
-  font-size: 2rem;
+  font-size: 2.3rem;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: 14px;
   box-shadow: 0 2px 6px rgba(20, 143, 70, 0.22);
 }
 
@@ -398,11 +439,27 @@ body {
   border-color: var(--hc-red-dark);
 }
 
-.mhc-waiting-row .col-name {
+.mhc-waiting-row .col-patient {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding-left: 16px;
+  min-width: 0;
+}
+
+.mhc-patient-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mhc-patient-sub {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-right: 12px;
+  padding-left: 48px;
 }
 
 .mhc-gender-icon {
@@ -428,17 +485,25 @@ body {
 }
 
 .mhc-patient-name {
-  font-size: 1.9rem;
+  font-size: 2.35rem;
   font-weight: 700;
   color: #09351c;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
 }
 
-.mhc-waiting-row .col-dob {
-  font-size: 1.9rem;
+.mhc-dob-text {
+  font-size: 1.35rem;
   font-weight: 700;
-  color: #09351c;
+  color: #0b5e28;
   font-variant-numeric: tabular-nums;
+}
+
+.mhc-age-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #526b5d;
 }
 
 .mhc-tag {
@@ -446,13 +511,33 @@ body {
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .mhc-tag-priority {
   background: var(--hc-red);
   color: #ffffff;
+}
+
+.mhc-tag-has-result {
+  background: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}
+
+.mhc-waiting-row.has-result {
+  background: #f0f9ff;
+  border-left: 5px solid #0284c7;
+}
+
+.mhc-waiting-row.has-result:nth-child(even) {
+  background: #e6f4fe;
+}
+
+.mhc-tag-result {
+  background: #f59e0b;
+  color: #0f172a;
 }
 
 .mhc-tag-ipd {
@@ -465,7 +550,7 @@ body {
   padding: 8px 14px;
   border-radius: 10px;
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 700;
   text-align: center;
 }
 
@@ -540,7 +625,7 @@ body {
 
 .mhc-selector-subtitle {
   color: #c7f0ff;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 0.95rem;
   letter-spacing: 1px;
   margin-bottom: 4px;
@@ -548,7 +633,7 @@ body {
 
 .mhc-selector-header h1 {
   font-size: 1.75rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #ffffff;
 }
 
@@ -581,7 +666,7 @@ body {
   border: 2px solid rgba(255, 255, 255, 0.5);
   background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -626,7 +711,7 @@ body {
 
 .mhc-area-badge {
   font-size: 0.8rem;
-  font-weight: 800;
+  font-weight: 700;
   padding: 4px 10px;
   border-radius: 6px;
   text-transform: uppercase;
@@ -645,12 +730,12 @@ body {
 .mhc-area-code {
   font-size: 0.85rem;
   color: #475569;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .mhc-area-name {
   font-size: 1.25rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #09351c;
 }
 
@@ -665,12 +750,12 @@ body {
 
 .stat-calling.active {
   color: var(--hc-red);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .stat-waiting.active {
   color: var(--hc-green-dark);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .mhc-state-box {
@@ -703,5 +788,5 @@ body {
   color: #fff;
   text-decoration: none;
   border-radius: 10px;
-  font-weight: 800;
+  font-weight: 700;
 }

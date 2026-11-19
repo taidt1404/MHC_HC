@@ -18,11 +18,15 @@ function createCache(defaultTtlMs = 1500) {
     });
   }
 
+  function del(key) {
+    store.delete(key);
+  }
+
   function clear() {
     store.clear();
   }
 
-  return { get, set, clear };
+  return { get, set, del, delete: del, clear };
 }
 
 module.exports = { createCache };
