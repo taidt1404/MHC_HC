@@ -81,20 +81,7 @@ LEFT JOIN (
                pq.area_id,
                pq.patient_id,
                pq.seq_num,
-               (CASE
-                    WHEN ar.area_type_rcd <> 'CLR'
-                         AND pq.active_flag = 1
-                         AND EXISTS (
-                             SELECT 1 FROM radiology_imaging_service_request ris
-                             WHERE ris.processing_queue_id = pq.processing_queue_id
-                               AND ris.created_date_time >= now()::date
-                               AND ris.start_report_date_time IS NOT NULL
-                               AND ris.completed_date_time IS NULL
-                               AND ris.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'CANCELLED')
-                         )
-                    THEN 2
-                    ELSE pq.active_flag
-               END) AS active_flag
+               pq.active_flag
         FROM processing_queue pq
         INNER JOIN area ar ON ar.area_id = pq.area_id
         INNER JOIN patient_visit pv ON pv.patient_visit_id = pq.patient_visit_id
@@ -125,22 +112,7 @@ LEFT JOIN (
                 )
           )
         ORDER BY pq.area_id, pq.patient_id, COALESCE(pq.seq_num, 0),
-                 (CASE WHEN (
-                     CASE
-                         WHEN ar.area_type_rcd <> 'CLR'
-                              AND pq.active_flag = 1
-                              AND EXISTS (
-                                  SELECT 1 FROM radiology_imaging_service_request ris
-                                  WHERE ris.processing_queue_id = pq.processing_queue_id
-                                    AND ris.created_date_time >= now()::date
-                                    AND ris.start_report_date_time IS NOT NULL
-                                    AND ris.completed_date_time IS NULL
-                                    AND ris.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'CANCELLED')
-                              )
-                         THEN 2
-                         ELSE pq.active_flag
-                     END
-                 ) = 2 THEN 4 WHEN pq.active_flag = 1 THEN 3 WHEN pq.active_flag = 4 THEN 2 ELSE 1 END) DESC
+                 (CASE WHEN pq.active_flag = 2 THEN 4 WHEN pq.active_flag = 1 THEN 3 WHEN pq.active_flag = 4 THEN 2 ELSE 1 END) DESC
     ) d
     GROUP BY d.area_id
 ) q ON q.area_id = a.area_id
@@ -166,53 +138,14 @@ WITH raw_waiting AS (
            pq.patient_id,
            pq.seq_num,
            pq.priority,
-           (CASE
-                WHEN ar.area_type_rcd <> 'CLR'
-                     AND pq.active_flag = 1
-                     AND EXISTS (
-                         SELECT 1 FROM radiology_imaging_service_request ris
-                         WHERE ris.processing_queue_id = pq.processing_queue_id
-                           AND ris.created_date_time >= now()::date
-                           AND ris.start_report_date_time IS NOT NULL
-                           AND ris.completed_date_time IS NULL
-                           AND ris.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'CANCELLED')
-                     )
-                THEN 2
-                ELSE pq.active_flag
-           END) AS active_flag,
+           pq.active_flag,
            pq.schedule_date_time,
            pq.recomment,
            pq.last_result_date_time,
            pq.ipd_queue_flag,
            (CASE
-                WHEN (
-                    CASE
-                        WHEN ar.area_type_rcd <> 'CLR' AND pq.active_flag = 1
-                             AND EXISTS (
-                                 SELECT 1 FROM radiology_imaging_service_request ris
-                                 WHERE ris.processing_queue_id = pq.processing_queue_id
-                                   AND ris.created_date_time >= now()::date
-                                   AND ris.start_report_date_time IS NOT NULL
-                                   AND ris.completed_date_time IS NULL
-                                   AND ris.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'CANCELLED')
-                             ) THEN 2
-                        ELSE pq.active_flag
-                    END
-                ) = 2 AND pq.priority = TRUE THEN 6
-                WHEN (
-                    CASE
-                        WHEN ar.area_type_rcd <> 'CLR' AND pq.active_flag = 1
-                             AND EXISTS (
-                                 SELECT 1 FROM radiology_imaging_service_request ris
-                                 WHERE ris.processing_queue_id = pq.processing_queue_id
-                                   AND ris.created_date_time >= now()::date
-                                   AND ris.start_report_date_time IS NOT NULL
-                                   AND ris.completed_date_time IS NULL
-                                   AND ris.cpoe_placer_order_status_rcd NOT IN ('COMPLETED', 'CANCELLED')
-                             ) THEN 2
-                        ELSE pq.active_flag
-                    END
-                ) = 2 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 5
+                WHEN pq.active_flag = 2 AND pq.priority = TRUE THEN 6
+                WHEN pq.active_flag = 2 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 5
                 WHEN pq.active_flag = 1 AND pq.priority = TRUE THEN 4
                 WHEN pq.active_flag = 1 AND (pq.priority ISNULL OR pq.priority = FALSE) THEN 3
                 WHEN pq.active_flag = 4 THEN 2
@@ -381,7 +314,7 @@ function createQueueService(dbPool, cache) {
         activeResultCalls.delete(areaId);
       } else {
         const targetIdx = partitioned.waiting.findIndex((p) => {
-          if (p.active_flag !== 4) return false;
+          if (p.active_flag !== 4 && p.active_flag !== 1) return false;
           if (activeResultCall.patient_id && p.patient_id === activeResultCall.patient_id) return true;
           if (activeResultCall.seq_num && String(p.seq_num).replace(/^0+/, '') === String(activeResultCall.seq_num).replace(/^0+/, '')) return true;
           if (activeResultCall.patient_name && p.patient_name) {

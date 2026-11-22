@@ -1,5 +1,5 @@
 (function () {
-  console.log('[MHC Extension v1.3] Đã kích hoạt trên trang HIS.');
+  console.log('[MHC Extension v1.0.3] Đã kích hoạt trên trang HIS (Khám bệnh & CĐHA).');
 
   let lastSentKey = '';
   let lastSentTime = 0;
@@ -15,60 +15,72 @@
       .trim();
   }
 
-  // Only run on Outpatient Examination (Khám bệnh ngoại trú) screens!
-  function isExaminationScreen() {
-    const url = (window.location.href || '').toLowerCase();
-    const blacklist = [
-      'emr-', 'storage', 'sign', 'ky-so',
-      'tiep-nhan', 'reception',
-      'thanh-toan', 'cashier', 'vien-phi',
-      'duoc', 'pharmacy', 'kho',
-      'xet-nghiem', 'cdha', 'can-lam-sang',
-      'noi-tru', 'ipd',
-      'bao-cao', 'report',
-      'he-thong', 'system', 'danh-muc'
-    ];
-    for (const b of blacklist) {
-      if (url.includes(b)) return false;
-    }
+  const URL_BLACKLIST = [
+    'emr-storage', 'storage-sign', 'ky-so',
+    'tiep-nhan', 'reception',
+    'thanh-toan', 'cashier', 'vien-phi',
+    'duoc', 'pharmacy', 'kho',
+    'noi-tru', 'ipd',
+    'he-thong', 'system', 'danh-muc'
+  ];
 
-    // Check Breadcrumb
+  function getBreadcrumbText() {
     const bc = document.querySelector('.el-breadcrumb, [class*="breadcrumb"], .breadcrumb');
-    if (bc) {
-      const bcText = removeAccents(bc.innerText || '');
-      if (bcText.includes('kham benh')) return true;
-      if (bcText.length > 5 && !bcText.includes('kham benh')) return false;
-    }
+    return bc ? removeAccents(bc.innerText || '') : '';
+  }
 
-    // Check Tabs
+  function getTabsText() {
     const tabs = document.querySelectorAll('.el-tabs__item, [role="tab"], .nav-tabs li, .tab-title');
-    if (tabs.length > 0) {
-      let isExamTab = false;
-      let isOtherTab = false;
-      tabs.forEach((t) => {
-        const txt = removeAccents(t.innerText || '');
-        if (txt.includes('tham kham ngoai tru') || txt.includes('thong tin ngoai tru')) {
-          isExamTab = true;
-        }
-        if (txt.includes('benh an dien tu') || txt.includes('danh sach benh nhan') || txt.includes('tiep nhan')) {
-          isOtherTab = true;
-        }
-      });
-      if (isExamTab) return true;
-      if (isOtherTab) return false;
+    let res = '';
+    tabs.forEach((t) => {
+      res += ' ' + removeAccents(t.innerText || '');
+    });
+    return res;
+  }
+
+  // Determine current screen: 'CDHA', 'EXAM', or null
+  function getScreenType() {
+    const url = (window.location.href || '').toLowerCase();
+    for (const b of URL_BLACKLIST) {
+      if (url.includes(b)) return null;
     }
 
-    // Check body markers
+    const bcText = getBreadcrumbText();
+    const tabsText = getTabsText();
     const bodyText = removeAccents(document.body.innerText || '');
-    if (bodyText.includes('danh sach tham kham ngoai tru') || bodyText.includes('chi tiet thong tin ngoai tru')) {
-      return true;
+
+    // CĐHA (Chẩn đoán hình ảnh: Siêu âm, X-quang, v.v.)
+    if (
+      bcText.includes('bao cao chan doan hinh anh') ||
+      bcText.includes('chan doan hinh anh') ||
+      tabsText.includes('lam bao cao cdha') ||
+      tabsText.includes('cho thuc hien') ||
+      bodyText.includes('bao cao chan doan hinh anh') ||
+      bodyText.includes('lam bao cao cdha')
+    ) {
+      return 'CDHA';
     }
 
-    return false;
+    // Examination (Khám bệnh ngoại trú)
+    if (
+      bcText.includes('kham benh') ||
+      tabsText.includes('tham kham ngoai tru') ||
+      tabsText.includes('thong tin ngoai tru') ||
+      bodyText.includes('danh sach tham kham ngoai tru') ||
+      bodyText.includes('chi tiet thong tin ngoai tru')
+    ) {
+      return 'EXAM';
+    }
+
+    return null;
+  }
+
+  function isSupportedScreen() {
+    return getScreenType() !== null;
   }
 
   function showToast(message, isSuccess = true) {
-    if (!isExaminationScreen()) return;
+    if (!isSupportedScreen()) return;
     let toast = document.getElementById('mhc-sync-toast');
     if (!toast) {
       toast = document.createElement('div');
@@ -109,7 +121,7 @@
     chrome.storage.local.get(['mhcServerUrl', 'mhcAreaId', 'mhcAreaName', 'mhcEnabled'], (cfg) => {
       if (cfg.mhcEnabled === false) return;
       if (!cfg.mhcAreaId) {
-        showToast('Chưa chọn phòng khám trong tiện ích MHC! Bấm vào icon MHC ở góc trình duyệt để chọn phòng.', false);
+        showToast('Chưa chọn phòng trong tiện ích MHC! Bấm icon MHC ở góc trình duyệt để chọn phòng.', false);
         return;
       }
 
@@ -124,7 +136,7 @@
       lastSentKey = cacheKey;
       lastSentTime = now;
 
-      console.log(`[MHC Extension] Đang gửi sang MHC: "${patientName}" (TT khám: ${seqNum || '--'})`);
+      console.log(`[MHC Extension] Đang gửi sang MHC (${cfg.mhcAreaName || areaId}): "${patientName}" (STT: ${seqNum || '--'})`);
 
       fetch(`${serverUrl}/api/queue/calling-result`, {
         method: 'POST',
@@ -138,7 +150,7 @@
         .then((res) => res.json())
         .then((data) => {
           if (data.success) {
-            showToast(`MHC: Đã gọi trả KQ [${patientName || ('Số ' + seqNum)}] lên màn hình chờ!`, true);
+            showToast(`MHC: Đã gọi [${patientName || ('Số ' + seqNum)}] lên màn hình chờ!`, true);
           } else {
             showToast(`MHC: ${data.message || 'Lỗi xử lý'}`, false);
           }
@@ -156,6 +168,8 @@
       const serverUrl = (cfg.mhcServerUrl || 'http://192.168.110.184:55637').replace(/\/+$/, '');
       const areaId = cfg.mhcAreaId;
 
+      lastSentKey = ''; // reset so user can call again if re-entering
+
       fetch(`${serverUrl}/api/queue/clear-calling-result`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,11 +184,20 @@
     });
   }
 
+  function cleanRowPatientName(str) {
+    if (!str) return null;
+    return str
+      .replace(/\[.*?\]/g, '') // remove bracket tags like [SA], [SA.305], [XQ]
+      .replace(/mãn\s*tính|man\s*tinh|ưu\s*tiên|uu\s*tien|cấp\s*cứu|cap\s*cuu|bhyt/gi, '')
+      .trim();
+  }
+
   // Find column indexes in a table header
   function getTableColumnIndexes(table) {
     const headers = table.querySelectorAll('th');
     let nameCol = -1;
     let ttCol = -1;
+    let sttCol = -1;
     headers.forEach((th, idx) => {
       const text = removeAccents(th.innerText || '');
       if (text.includes('ho ten') || text.includes('ho va ten') || text === 'ten') {
@@ -183,8 +206,11 @@
       if (text.includes('tt kham') || text.includes('so kham') || text.includes('stt kham')) {
         ttCol = idx;
       }
+      if (text === 'stt' || text.includes('so thu tu')) {
+        sttCol = idx;
+      }
     });
-    return { nameCol, ttCol };
+    return { nameCol, ttCol, sttCol };
   }
 
   // Extract patient name and sequence number from table row
@@ -195,12 +221,15 @@
 
     const table = row.closest('table');
     if (table && cells.length > 0) {
-      const { nameCol, ttCol } = getTableColumnIndexes(table);
+      const { nameCol, ttCol, sttCol } = getTableColumnIndexes(table);
       if (nameCol !== -1 && cells[nameCol]) {
-        patientName = cells[nameCol].innerText.replace(/mãn\s*tính|ưu\s*tiên|cấp\s*cứu|bhyt/gi, '').trim();
+        patientName = cleanRowPatientName(cells[nameCol].innerText);
       }
       if (ttCol !== -1 && cells[ttCol]) {
         const num = cells[ttCol].innerText.trim();
+        if (/^\d+$/.test(num)) seqNum = num;
+      } else if (sttCol !== -1 && cells[sttCol]) {
+        const num = cells[sttCol].innerText.trim();
         if (/^\d+$/.test(num)) seqNum = num;
       }
     }
@@ -208,16 +237,23 @@
     if (!patientName || !seqNum) {
       cells.forEach((cell, idx) => {
         const text = cell.innerText.trim();
-        const cleaned = text.replace(/mãn\s*tính|ưu\s*tiên|cấp\s*cứu|bhyt/gi, '').trim();
+        const cleaned = cleanRowPatientName(text);
 
-        if (!patientName && cleaned.length >= 4 && !/\d/.test(cleaned) && cleaned.includes(' ')) {
+        if (!patientName && cleaned && cleaned.length >= 4 && !/\d/.test(cleaned) && cleaned.includes(' ')) {
           const norm = removeAccents(cleaned);
-          if (!norm.includes('benh vien') && !norm.includes('phong kham') && !norm.includes('bac si') && !norm.includes('da co ket qua')) {
+          if (
+            !norm.includes('benh vien') &&
+            !norm.includes('phong kham') &&
+            !norm.includes('bac si') &&
+            !norm.includes('da co ket qua') &&
+            !norm.includes('sieu am') &&
+            !norm.includes('x-quang')
+          ) {
             patientName = cleaned;
           }
         }
 
-        if (!seqNum && idx > 2 && /^\d{1,3}$/.test(text)) {
+        if (!seqNum && (idx === 0 || idx === 1 || idx > 2) && /^\d{1,4}$/.test(text)) {
           seqNum = text;
         }
       });
@@ -226,69 +262,149 @@
     return { patientName, seqNum };
   }
 
-  // Extract patient from active view banner ("Chi tiết thông tin ngoại trú")
+  function cleanBannerName(name) {
+    if (!name) return null;
+    let cleaned = name
+      .replace(/\[.*?\]/g, '')
+      .replace(/mãn\s*tính|man\s*tinh|ưu\s*tiên|uu\s*tien|cấp\s*cứu|cap\s*cuu|bhyt/gi, '')
+      .trim();
+    const norm = removeAccents(cleaned);
+    if (
+      norm.includes('benh vien') ||
+      norm.includes('phong kham') ||
+      norm.includes('bac si') ||
+      norm.includes('ky thuat vien') ||
+      norm.length < 3
+    ) {
+      return null;
+    }
+    return cleaned;
+  }
+
+  // Extract patient from active view banner (both Exam & CĐHA)
   function extractPatientFromBanner() {
     const raw = document.body.innerText || '';
-    const norm = removeAccents(raw);
 
-    const match = norm.match(/\d{5,8}\s+([a-z\s]{3,30})\s+(?:nam|nu)\s+\d+\s+tuoi/);
-    if (match) {
-      return match[1].trim();
+    // 1. Match raw text for original casing and accents:
+    // e.g. "PID 0008686 [SA.305] KHỔNG THỊ ĐANG Nữ 61 tuổi"
+    const mRaw = raw.match(/(?:PID\s*)?\d{4,9}\s+(?:\[[^\]]*\]\s*)?([A-ZÀ-Ỹa-zà-ỹ\s]{2,35})\s+(?:Nam|Nữ|nam|nữ)\s+\d+\s+tuổi/iu);
+    if (mRaw) {
+      const candidate = cleanBannerName(mRaw[1]);
+      if (candidate) return candidate;
     }
 
-    const match2 = norm.match(/([a-z\s]{4,30})\s+(?:nam|nu).*?\(\s*ns\s*:/);
-    if (match2) {
-      return match2[1].trim();
+    // 2. Fallback using normalized text
+    const norm = removeAccents(raw);
+
+    const m1 = norm.match(/(?:pid\s*)?\d{4,9}\s+(?:\[[^\]]*\]\s*)?([a-z\s]{2,35})\s+(?:nam|nu)\s+\d+\s+tuoi/i);
+    if (m1) {
+      const candidate = cleanBannerName(m1[1]);
+      if (candidate) return candidate;
+    }
+
+    const m2 = norm.match(/(?:\[[^\]]*\]\s*)?([a-z\s]{3,35})\s+(?:nam|nu).*?\(\s*ns\s*:/i);
+    if (m2) {
+      const candidate = cleanBannerName(m2[1]);
+      if (candidate) return candidate;
+    }
+
+    const m3 = norm.match(/([a-z\s]{4,35})\s+(?:nam|nu)\s+\d+\s+tuoi/i);
+    if (m3) {
+      const candidate = cleanBannerName(m3[1]);
+      if (candidate) return candidate;
     }
 
     return null;
   }
 
+  function removeQuickButtons() {
+    const qBtn = document.getElementById('mhc-quick-call-btn');
+    if (qBtn) qBtn.remove();
+    const cBtn = document.getElementById('mhc-cancel-call-btn');
+    if (cBtn) cBtn.remove();
+  }
+
+  function isDetailScreenOpen(screenType) {
+    const raw = document.body.innerText || '';
+    const norm = removeAccents(raw);
+
+    if (screenType === 'CDHA') {
+      const isCdhaTab =
+        norm.includes('lam bao cao cdha') &&
+        (norm.includes('ket qua mau') || norm.includes('mau bao cao') || norm.includes('luu lai') || norm.includes('hoan thanh'));
+      return isCdhaTab;
+    }
+
+    if (screenType === 'EXAM') {
+      return (
+        norm.includes('chi tiet thong tin ngoai tru') ||
+        norm.includes('tom tat cls') ||
+        norm.includes('kq chi dinh')
+      );
+    }
+
+    return false;
+  }
+
   // 1. Detection via Click
   document.addEventListener('click', (e) => {
     try {
-      if (!isExaminationScreen()) return;
+      const screenType = getScreenType();
+      if (!screenType) return;
+
       const target = e.target;
       if (!target) return;
 
       const text = removeAccents(target.innerText || target.textContent || '');
 
-      // When doctor clicks "Tìm kiếm", "Làm mới", tab "Danh sách thăm khám ngoại trú", "Hủy khám":
-      // Doctor has exited the patient record back to the search list -> Clear calling!
-      if (
+      // User exits the patient record back to the search list or finishes:
+      const isExitAction =
         text.includes('tim kiem') ||
         text.includes('lam moi') ||
         text.includes('danh sach tham kham') ||
-        text.includes('huy kham')
-      ) {
+        text.includes('cho thuc hien') ||
+        text.includes('da lam bao cao') ||
+        text.includes('hoi chan cdha') ||
+        text.includes('vat tu tieu hao') ||
+        text.includes('huy kham') ||
+        text.includes('hoan thanh');
+
+      if (isExitAction) {
         clearMhcCalling(true);
-        const qBtn = document.getElementById('mhc-quick-call-btn');
-        if (qBtn) qBtn.remove();
-        const cBtn = document.getElementById('mhc-cancel-call-btn');
-        if (cBtn) cBtn.remove();
+        removeQuickButtons();
         return;
       }
 
       // Check click on patient row in table
       const row = target.closest('tr') || target.closest('.el-table__row') || target.closest('[class*="row"]');
       if (row) {
-        const norm = removeAccents(row.innerText || row.textContent || '');
-        const hasResult =
-          norm.includes('da co ket qua') ||
-          norm.includes('da co kq') ||
-          norm.includes('co ket qua') ||
-          norm.includes('co kq');
-
-        if (hasResult) {
+        if (screenType === 'CDHA') {
+          // In CĐHA "Chờ thực hiện", all patients are waiting to be called into the room
           const { patientName, seqNum } = extractFromRow(row);
           if (patientName || seqNum) {
             notifyMhc(patientName, seqNum);
             return;
           }
+        } else if (screenType === 'EXAM') {
+          // In Exam rooms, only patients with "Đã có kết quả" are returning to room
+          const norm = removeAccents(row.innerText || row.textContent || '');
+          const hasResult =
+            norm.includes('da co ket qua') ||
+            norm.includes('da co kq') ||
+            norm.includes('co ket qua') ||
+            norm.includes('co kq');
+
+          if (hasResult) {
+            const { patientName, seqNum } = extractFromRow(row);
+            if (patientName || seqNum) {
+              notifyMhc(patientName, seqNum);
+              return;
+            }
+          }
         }
       }
 
-      // Check if viewing "Chi tiết thông tin ngoại trú"
+      // Check if viewing detail banner
       setTimeout(injectOrTriggerBanner, 400);
     } catch (err) {
       console.error('[MHC Extension] Click error:', err);
@@ -297,42 +413,23 @@
 
   // 2. Inject Buttons and Auto-trigger when viewing patient detail
   function injectOrTriggerBanner() {
-    if (!isExaminationScreen()) {
-      const qBtn = document.getElementById('mhc-quick-call-btn');
-      if (qBtn) qBtn.remove();
-      const cBtn = document.getElementById('mhc-cancel-call-btn');
-      if (cBtn) cBtn.remove();
-      return;
-    }
-
-    const raw = document.body.innerText || '';
-    const norm = removeAccents(raw);
-
-    const isDetailOpen =
-      norm.includes('chi tiet thong tin ngoai tru') ||
-      norm.includes('tom tat cls') ||
-      norm.includes('kq chi dinh');
-
-    if (!isDetailOpen) {
-      // If not in detail view, remove buttons if any
-      const qBtn = document.getElementById('mhc-quick-call-btn');
-      if (qBtn) qBtn.remove();
-      const cBtn = document.getElementById('mhc-cancel-call-btn');
-      if (cBtn) cBtn.remove();
+    const screenType = getScreenType();
+    if (!screenType || !isDetailScreenOpen(screenType)) {
+      removeQuickButtons();
       return;
     }
 
     const patientName = extractPatientFromBanner();
     if (!patientName) return;
 
-    // Inject "Gọi Trả KQ" green button
+    // Inject "Gọi Vào Phòng (TV)" / "Gọi Trả KQ (TV)" green button
     if (!document.getElementById('mhc-quick-call-btn')) {
       const btn = document.createElement('button');
       btn.id = 'mhc-quick-call-btn';
       btn.style.cssText = `
         position: fixed;
         top: 68px;
-        right: 170px;
+        right: 180px;
         z-index: 99999;
         background: #16a34a;
         color: #ffffff;
@@ -347,7 +444,7 @@
         align-items: center;
         gap: 6px;
       `;
-      btn.innerHTML = '📢 Gọi Trả KQ (TV)';
+      btn.innerHTML = screenType === 'CDHA' ? '📢 Gọi Vào Phòng (TV)' : '📢 Gọi Trả KQ (TV)';
       btn.title = 'Bấm để hiển thị bệnh nhân này lên cột Mời Vào Phòng ngoài màn hình chờ';
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -390,18 +487,26 @@
       document.body.appendChild(cancelBtn);
     }
 
-    if (norm.includes('kq chi dinh') || norm.includes('tom tat cls') || norm.includes('da co ket qua')) {
+    // Auto trigger
+    const raw = document.body.innerText || '';
+    const norm = removeAccents(raw);
+
+    if (screenType === 'CDHA') {
+      // In CĐHA: if doctor is in "Làm báo cáo CĐHA", call patient to TV
       notifyMhc(patientName, null);
+    } else if (screenType === 'EXAM') {
+      // In Exam: only if patient has results
+      if (norm.includes('kq chi dinh') || norm.includes('tom tat cls') || norm.includes('da co ket qua')) {
+        notifyMhc(patientName, null);
+      }
     }
   }
 
   let throttleTimer = null;
   const observer = new MutationObserver(() => {
-    if (!isExaminationScreen()) {
-      const qBtn = document.getElementById('mhc-quick-call-btn');
-      if (qBtn) qBtn.remove();
-      const cBtn = document.getElementById('mhc-cancel-call-btn');
-      if (cBtn) cBtn.remove();
+    const screenType = getScreenType();
+    if (!screenType) {
+      removeQuickButtons();
       return;
     }
     if (throttleTimer) return;
