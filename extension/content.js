@@ -1,5 +1,5 @@
 (function () {
-  console.log('[MHC Extension v1.0.3] Đã kích hoạt trên trang HIS (Khám bệnh & CĐHA).');
+  console.log('[MHC Extension v1.0.4] Đã kích hoạt trên trang HIS (Khám bệnh & CĐHA).');
 
   let lastSentKey = '';
   let lastSentTime = 0;
@@ -405,87 +405,23 @@
       }
 
       // Check if viewing detail banner
-      setTimeout(injectOrTriggerBanner, 400);
+      setTimeout(handlePatientDetailView, 400);
     } catch (err) {
       console.error('[MHC Extension] Click error:', err);
     }
   }, true);
 
-  // 2. Inject Buttons and Auto-trigger when viewing patient detail
-  function injectOrTriggerBanner() {
+  // 2. Auto-trigger when viewing patient detail (completely automatic, no injected floating buttons)
+  function handlePatientDetailView() {
+    removeQuickButtons(); // Always clean up any floating buttons if they exist
+
     const screenType = getScreenType();
     if (!screenType || !isDetailScreenOpen(screenType)) {
-      removeQuickButtons();
       return;
     }
 
     const patientName = extractPatientFromBanner();
     if (!patientName) return;
-
-    // Inject "Gọi Vào Phòng (TV)" / "Gọi Trả KQ (TV)" green button
-    if (!document.getElementById('mhc-quick-call-btn')) {
-      const btn = document.createElement('button');
-      btn.id = 'mhc-quick-call-btn';
-      btn.style.cssText = `
-        position: fixed;
-        top: 68px;
-        right: 180px;
-        z-index: 99999;
-        background: #16a34a;
-        color: #ffffff;
-        border: 2px solid #ffffff;
-        border-radius: 6px;
-        padding: 6px 12px;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      `;
-      btn.innerHTML = screenType === 'CDHA' ? '📢 Gọi Vào Phòng (TV)' : '📢 Gọi Trả KQ (TV)';
-      btn.title = 'Bấm để hiển thị bệnh nhân này lên cột Mời Vào Phòng ngoài màn hình chờ';
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const currentName = extractPatientFromBanner();
-        notifyMhc(currentName, null);
-      });
-      document.body.appendChild(btn);
-    }
-
-    // Inject "Hủy Gọi TV" red button
-    if (!document.getElementById('mhc-cancel-call-btn')) {
-      const cancelBtn = document.createElement('button');
-      cancelBtn.id = 'mhc-cancel-call-btn';
-      cancelBtn.style.cssText = `
-        position: fixed;
-        top: 68px;
-        right: 40px;
-        z-index: 99999;
-        background: #dc2626;
-        color: #ffffff;
-        border: 2px solid #ffffff;
-        border-radius: 6px;
-        padding: 6px 12px;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      `;
-      cancelBtn.innerHTML = '✖ Hủy Gọi TV';
-      cancelBtn.title = 'Bấm để gỡ bệnh nhân khỏi cột Mời Vào Phòng ngoài TV và trả về danh sách chờ';
-      cancelBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        clearMhcCalling(true);
-      });
-      document.body.appendChild(cancelBtn);
-    }
 
     // Auto trigger
     const raw = document.body.innerText || '';
@@ -512,10 +448,10 @@
     if (throttleTimer) return;
     throttleTimer = setTimeout(() => {
       throttleTimer = null;
-      injectOrTriggerBanner();
+      handlePatientDetailView();
     }, 600);
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
-  setTimeout(injectOrTriggerBanner, 1000);
+  setTimeout(handlePatientDetailView, 1000);
 })();

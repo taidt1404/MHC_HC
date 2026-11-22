@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MHC - Tự Động Gọi Bệnh Nhân (Khám & CĐHA)",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Tự động đồng bộ bệnh nhân (Khám bệnh & CĐHA/Siêu âm/X-quang) từ HIS sang màn hình chờ MHC",
   "permissions": [
     "storage"
