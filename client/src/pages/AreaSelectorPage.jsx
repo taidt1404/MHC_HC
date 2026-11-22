@@ -94,6 +94,14 @@ export default function AreaSelectorPage() {
               Phòng khám
             </button>
           </div>
+          <a
+            href="/mhc-extension.zip"
+            download="mhc-extension.zip"
+            className="mhc-download-btn"
+            title="Bấm để tải tiện ích Chrome (MHC Extension) cài đặt cho máy tính Phòng khám và CĐHA"
+          >
+            <span className="mhc-download-icon">📥</span> Tải tiện ích Chrome (Extension)
+          </a>
         </div>
       </div>
 
