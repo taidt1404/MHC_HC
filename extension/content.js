@@ -1,8 +1,7 @@
 (function () {
-  console.log('[MHC Extension v1.0.5] Đã kích hoạt trên trang HIS (chạy ngầm tự động).');
+  console.log('[MHC Extension v1.0.6] Đã kích hoạt trên trang HIS (tối ưu thông minh, không spam API).');
 
-  let lastSentKey = '';
-  let lastSentTime = 0;
+  let activeCallingPatientKey = null;
 
   // Clean up any existing toast if present
   const existingToast = document.getElementById('mhc-sync-toast');
@@ -102,14 +101,14 @@
     return null;
   }
 
-  // Silent notification - completely hides UI toast popup as requested
-  function showToast() {
-    const toast = document.getElementById('mhc-sync-toast');
-    if (toast) toast.remove();
-  }
-
   function notifyMhc(patientName, seqNum) {
     if (!isValidPatientName(patientName) && !seqNum) return;
+
+    const patientKey = `${removeAccents(patientName || '')}_${seqNum || ''}`;
+    // If this patient is already currently active on MHC, DO NOT send duplicate API requests!
+    if (patientKey === activeCallingPatientKey) {
+      return;
+    }
 
     chrome.storage.local.get(['mhcServerUrl', 'mhcAreaId', 'mhcAreaName', 'mhcEnabled'], (cfg) => {
       if (cfg.mhcEnabled === false || !cfg.mhcAreaId) return;
@@ -117,15 +116,9 @@
       const serverUrl = (cfg.mhcServerUrl || 'http://192.168.110.184:55637').replace(/\/+$/, '');
       const areaId = cfg.mhcAreaId;
 
-      const cacheKey = `${patientName || ''}-${seqNum || ''}`;
-      const now = Date.now();
-      if (cacheKey === lastSentKey && now - lastSentTime < 2500) {
-        return; // debounce 2.5s
-      }
-      lastSentKey = cacheKey;
-      lastSentTime = now;
+      activeCallingPatientKey = patientKey;
 
-      console.log(`[MHC Extension] Gọi bệnh nhân sang MHC (${cfg.mhcAreaName || areaId}): "${patientName}" (STT: ${seqNum || '--'})`);
+      console.log(`[MHC Extension] Gọi bệnh nhân mới sang MHC (${cfg.mhcAreaName || areaId}): "${patientName}" (STT: ${seqNum || '--'})`);
 
       fetch(`${serverUrl}/api/queue/calling-result`, {
         method: 'POST',
@@ -142,12 +135,16 @@
   }
 
   function clearMhcCalling() {
+    if (activeCallingPatientKey === null) {
+      return; // Already cleared, no need to spam API
+    }
+
     chrome.storage.local.get(['mhcServerUrl', 'mhcAreaId', 'mhcEnabled'], (cfg) => {
       if (cfg.mhcEnabled === false || !cfg.mhcAreaId) return;
       const serverUrl = (cfg.mhcServerUrl || 'http://192.168.110.184:55637').replace(/\/+$/, '');
       const areaId = cfg.mhcAreaId;
 
-      lastSentKey = ''; // reset so user can call again if re-entering
+      activeCallingPatientKey = null;
 
       console.log(`[MHC Extension] Hủy gọi trả về danh sách chờ cho phòng: ${areaId}`);
 
@@ -271,15 +268,6 @@
     return null;
   }
 
-  function removeQuickButtons() {
-    const qBtn = document.getElementById('mhc-quick-call-btn');
-    if (qBtn) qBtn.remove();
-    const cBtn = document.getElementById('mhc-cancel-call-btn');
-    if (cBtn) cBtn.remove();
-    const t = document.getElementById('mhc-sync-toast');
-    if (t) t.remove();
-  }
-
   function isDetailScreenOpen(screenType) {
     const raw = document.body.innerText || '';
     const norm = removeAccents(raw);
@@ -302,7 +290,7 @@
     return false;
   }
 
-  // 1. Detection via Click
+  // 1. Detection via Click (strictly targeted, never fires on blank space)
   document.addEventListener('click', (e) => {
     try {
       const screenType = getScreenType();
@@ -327,12 +315,11 @@
 
       if (isExitAction) {
         clearMhcCalling();
-        removeQuickButtons();
         return;
       }
 
       // Check click on patient row in table
-      const row = target.closest('tr') || target.closest('.el-table__row') || target.closest('[class*="row"]');
+      const row = target.closest('tr') || target.closest('.el-table__row');
       if (row) {
         if (screenType === 'CDHA') {
           // In CĐHA "Chờ thực hiện", all patients are waiting to be called into the room
@@ -360,34 +347,38 @@
         }
       }
 
-      // Check if viewing detail banner
-      setTimeout(handlePatientDetailView, 400);
+      // Only re-check detail if user specifically clicked a tab element
+      const isTabClick = target.closest('.el-tabs__item, [role="tab"], .nav-tabs li');
+      if (isTabClick) {
+        setTimeout(handlePatientDetailView, 400);
+      }
     } catch (err) {
       console.error('[MHC Extension] Click error:', err);
     }
   }, true);
 
-  // 2. Auto-trigger when viewing patient detail (completely silent in background)
+  // 2. Auto-trigger when viewing patient detail (runs once per patient change, silent)
   function handlePatientDetailView() {
-    removeQuickButtons();
-
     const screenType = getScreenType();
     if (!screenType || !isDetailScreenOpen(screenType)) {
+      // If user has left the detail screen, reset calling
+      if (activeCallingPatientKey !== null) {
+        clearMhcCalling();
+      }
       return;
     }
 
     const patientName = extractPatientFromBanner();
     if (!patientName) return;
 
-    // Auto trigger
     const raw = document.body.innerText || '';
     const norm = removeAccents(raw);
 
     if (screenType === 'CDHA') {
-      // In CĐHA: if doctor is in "Làm báo cáo CĐHA", call patient to TV
+      // In CĐHA: if doctor is in "Làm báo cáo CĐHA", call patient to TV (once)
       notifyMhc(patientName, null);
     } else if (screenType === 'EXAM') {
-      // In Exam: only if patient has results
+      // In Exam: only if patient has results (once)
       if (norm.includes('kq chi dinh') || norm.includes('tom tat cls') || norm.includes('da co ket qua')) {
         notifyMhc(patientName, null);
       }
@@ -397,17 +388,15 @@
   let throttleTimer = null;
   const observer = new MutationObserver(() => {
     const screenType = getScreenType();
-    if (!screenType) {
-      removeQuickButtons();
-      return;
-    }
+    if (!screenType) return;
+
     if (throttleTimer) return;
     throttleTimer = setTimeout(() => {
       throttleTimer = null;
       handlePatientDetailView();
-    }, 600);
+    }, 500);
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
-  setTimeout(handlePatientDetailView, 1000);
+  setTimeout(handlePatientDetailView, 800);
 })();
