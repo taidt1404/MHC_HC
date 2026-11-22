@@ -11,7 +11,12 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Cài đặt MHC Gọi Bệnh Nhân"
+    "default_title": "Cài đặt MHC Gọi Bệnh Nhân",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
   },
   "content_scripts": [
     {

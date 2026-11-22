@@ -4,7 +4,7 @@ title Cai dat Tien ich MHC - BV Da Khoa Hung Cuong
 color 0A
 
 echo ================================================================
-echo   CÀI ĐẶT TIỆN ÍCH MHC - TỰ ĐỘNG GỌI TRẢ KẾT QUẢ CHO BÁC SĨ
+echo   CÀI ĐẶT TIỆN ÍCH MHC - TỰ ĐỘNG GỌI BỆNH NHÂN (KHÁM & CĐHA)
 echo                   BỆNH VIỆN ĐA KHOA HÙNG CƯỜNG
 echo ================================================================
 echo.
@@ -32,7 +32,7 @@ echo   1. Bật công tắc "Developer mode" (ở góc trên bên phải)
 echo   2. Bấm nút "Load unpacked" (ở góc trên bên trái)
 echo      -> Chọn thư mục: %TARGET_DIR%
 echo.
-echo   3. Bấm vào icon mảnh ghép 🧩 -> Chọn phòng khám của bạn -> Lưu!
+echo   3. Bấm vào icon MHC -> Chọn phòng (Khám hoặc CĐHA) -> Bấm Lưu!
 echo ================================================================
 echo.
 pause
