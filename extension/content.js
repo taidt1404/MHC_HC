@@ -1,8 +1,12 @@
 (function () {
-  console.log('[MHC Extension v1.0.4] Đã kích hoạt trên trang HIS (Khám bệnh & CĐHA).');
+  console.log('[MHC Extension v1.0.5] Đã kích hoạt trên trang HIS (chạy ngầm tự động).');
 
   let lastSentKey = '';
   let lastSentTime = 0;
+
+  // Clean up any existing toast if present
+  const existingToast = document.getElementById('mhc-sync-toast');
+  if (existingToast) existingToast.remove();
 
   function removeAccents(str) {
     if (!str) return '';
@@ -23,6 +27,29 @@
     'noi-tru', 'ipd',
     'he-thong', 'system', 'danh-muc'
   ];
+
+  const INVALID_NAME_WORDS = [
+    'benh vien', 'phong kham', 'bac si', 'ky thuat vien', 'dieu duong',
+    'da co ket qua', 'sieu am', 'x-quang', 'chup', 'xet nghiem',
+    'danh muc', 'vat tu', 'dinh kem', 'hoa chat', 'thuoc',
+    'dich vu', 'chi dinh', 'tong so', 'so ca', 'chan doan',
+    'mo ta', 'ket qua', 'noi dung', 'ghi chu', 'bao cao',
+    'thong tin', 'nhan vien', 'thao tac', 'khoa', 'kho',
+    'thoi gian', 'ngay sinh', 'dia chi', 'bao hiem'
+  ];
+
+  function isValidPatientName(str) {
+    if (!str || typeof str !== 'string') return false;
+    const trimmed = str.trim();
+    if (trimmed.length < 3 || trimmed.length > 35) return false;
+    if (/\d/.test(trimmed)) return false;
+    if (!trimmed.includes(' ')) return false;
+    const norm = removeAccents(trimmed);
+    for (const w of INVALID_NAME_WORDS) {
+      if (norm.includes(w)) return false;
+    }
+    return true;
+  }
 
   function getBreadcrumbText() {
     const bc = document.querySelector('.el-breadcrumb, [class*="breadcrumb"], .breadcrumb');
@@ -75,55 +102,17 @@
     return null;
   }
 
-  function isSupportedScreen() {
-    return getScreenType() !== null;
-  }
-
-  function showToast(message, isSuccess = true) {
-    if (!isSupportedScreen()) return;
-    let toast = document.getElementById('mhc-sync-toast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'mhc-sync-toast';
-      toast.style.cssText = `
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        z-index: 9999999;
-        padding: 12px 18px;
-        background: ${isSuccess ? '#166534' : '#991b1b'};
-        color: #ffffff;
-        font-family: 'Segoe UI', Arial, sans-serif;
-        font-size: 14px;
-        font-weight: 700;
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: opacity 0.3s ease;
-        opacity: 0;
-        pointer-events: none;
-      `;
-      document.body.appendChild(toast);
-    }
-
-    toast.style.background = isSuccess ? '#166534' : '#991b1b';
-    toast.innerHTML = (isSuccess ? '📢 ' : '⚠️ ') + message;
-    toast.style.opacity = '1';
-
-    setTimeout(() => {
-      if (toast) toast.style.opacity = '0';
-    }, 4500);
+  // Silent notification - completely hides UI toast popup as requested
+  function showToast() {
+    const toast = document.getElementById('mhc-sync-toast');
+    if (toast) toast.remove();
   }
 
   function notifyMhc(patientName, seqNum) {
+    if (!isValidPatientName(patientName) && !seqNum) return;
+
     chrome.storage.local.get(['mhcServerUrl', 'mhcAreaId', 'mhcAreaName', 'mhcEnabled'], (cfg) => {
-      if (cfg.mhcEnabled === false) return;
-      if (!cfg.mhcAreaId) {
-        showToast('Chưa chọn phòng trong tiện ích MHC! Bấm icon MHC ở góc trình duyệt để chọn phòng.', false);
-        return;
-      }
+      if (cfg.mhcEnabled === false || !cfg.mhcAreaId) return;
 
       const serverUrl = (cfg.mhcServerUrl || 'http://192.168.110.184:55637').replace(/\/+$/, '');
       const areaId = cfg.mhcAreaId;
@@ -136,7 +125,7 @@
       lastSentKey = cacheKey;
       lastSentTime = now;
 
-      console.log(`[MHC Extension] Đang gửi sang MHC (${cfg.mhcAreaName || areaId}): "${patientName}" (STT: ${seqNum || '--'})`);
+      console.log(`[MHC Extension] Gọi bệnh nhân sang MHC (${cfg.mhcAreaName || areaId}): "${patientName}" (STT: ${seqNum || '--'})`);
 
       fetch(`${serverUrl}/api/queue/calling-result`, {
         method: 'POST',
@@ -146,23 +135,13 @@
           patientName,
           seqNum,
         }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            showToast(`MHC: Đã gọi [${patientName || ('Số ' + seqNum)}] lên màn hình chờ!`, true);
-          } else {
-            showToast(`MHC: ${data.message || 'Lỗi xử lý'}`, false);
-          }
-        })
-        .catch((err) => {
-          console.error('[MHC Extension] Lỗi kết nối:', err);
-          showToast(`Lỗi kết nối máy chủ MHC: ${err.message}`, false);
-        });
+      }).catch((err) => {
+        console.error('[MHC Extension] Lỗi kết nối:', err);
+      });
     });
   }
 
-  function clearMhcCalling(showMsg = true) {
+  function clearMhcCalling() {
     chrome.storage.local.get(['mhcServerUrl', 'mhcAreaId', 'mhcEnabled'], (cfg) => {
       if (cfg.mhcEnabled === false || !cfg.mhcAreaId) return;
       const serverUrl = (cfg.mhcServerUrl || 'http://192.168.110.184:55637').replace(/\/+$/, '');
@@ -170,26 +149,23 @@
 
       lastSentKey = ''; // reset so user can call again if re-entering
 
+      console.log(`[MHC Extension] Hủy gọi trả về danh sách chờ cho phòng: ${areaId}`);
+
       fetch(`${serverUrl}/api/queue/clear-calling-result`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ areaId }),
-      })
-        .then(() => {
-          if (showMsg) {
-            showToast('MHC: Đã hủy gọi, trả về danh sách chờ!', true);
-          }
-        })
-        .catch(() => { });
+      }).catch(() => { });
     });
   }
 
   function cleanRowPatientName(str) {
     if (!str) return null;
-    return str
+    const cleaned = str
       .replace(/\[.*?\]/g, '') // remove bracket tags like [SA], [SA.305], [XQ]
       .replace(/mãn\s*tính|man\s*tinh|ưu\s*tiên|uu\s*tien|cấp\s*cứu|cap\s*cuu|bhyt/gi, '')
       .trim();
+    return isValidPatientName(cleaned) ? cleaned : null;
   }
 
   // Find column indexes in a table header
@@ -234,26 +210,14 @@
       }
     }
 
-    if (!patientName || !seqNum) {
+    if (!patientName && cells.length >= 3) {
       cells.forEach((cell, idx) => {
         const text = cell.innerText.trim();
         const cleaned = cleanRowPatientName(text);
-
-        if (!patientName && cleaned && cleaned.length >= 4 && !/\d/.test(cleaned) && cleaned.includes(' ')) {
-          const norm = removeAccents(cleaned);
-          if (
-            !norm.includes('benh vien') &&
-            !norm.includes('phong kham') &&
-            !norm.includes('bac si') &&
-            !norm.includes('da co ket qua') &&
-            !norm.includes('sieu am') &&
-            !norm.includes('x-quang')
-          ) {
-            patientName = cleaned;
-          }
+        if (!patientName && cleaned) {
+          patientName = cleaned;
         }
-
-        if (!seqNum && (idx === 0 || idx === 1 || idx > 2) && /^\d{1,4}$/.test(text)) {
+        if (!seqNum && (idx === 0 || idx === 1) && /^\d{1,4}$/.test(text)) {
           seqNum = text;
         }
       });
@@ -264,21 +228,11 @@
 
   function cleanBannerName(name) {
     if (!name) return null;
-    let cleaned = name
+    const cleaned = name
       .replace(/\[.*?\]/g, '')
       .replace(/mãn\s*tính|man\s*tinh|ưu\s*tiên|uu\s*tien|cấp\s*cứu|cap\s*cuu|bhyt/gi, '')
       .trim();
-    const norm = removeAccents(cleaned);
-    if (
-      norm.includes('benh vien') ||
-      norm.includes('phong kham') ||
-      norm.includes('bac si') ||
-      norm.includes('ky thuat vien') ||
-      norm.length < 3
-    ) {
-      return null;
-    }
-    return cleaned;
+    return isValidPatientName(cleaned) ? cleaned : null;
   }
 
   // Extract patient from active view banner (both Exam & CĐHA)
@@ -322,6 +276,8 @@
     if (qBtn) qBtn.remove();
     const cBtn = document.getElementById('mhc-cancel-call-btn');
     if (cBtn) cBtn.remove();
+    const t = document.getElementById('mhc-sync-toast');
+    if (t) t.remove();
   }
 
   function isDetailScreenOpen(screenType) {
@@ -370,7 +326,7 @@
         text.includes('hoan thanh');
 
       if (isExitAction) {
-        clearMhcCalling(true);
+        clearMhcCalling();
         removeQuickButtons();
         return;
       }
@@ -411,9 +367,9 @@
     }
   }, true);
 
-  // 2. Auto-trigger when viewing patient detail (completely automatic, no injected floating buttons)
+  // 2. Auto-trigger when viewing patient detail (completely silent in background)
   function handlePatientDetailView() {
-    removeQuickButtons(); // Always clean up any floating buttons if they exist
+    removeQuickButtons();
 
     const screenType = getScreenType();
     if (!screenType || !isDetailScreenOpen(screenType)) {
