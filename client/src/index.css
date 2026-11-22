@@ -676,17 +676,22 @@ body {
   color: #ffffff;
 }
 
-.mhc-download-btn {
+.mhc-download-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mhc-download-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
-  background: #f59e0b;
-  color: #0f172a;
-  font-weight: 700;
-  font-size: 0.95rem;
+  padding: 9px 16px;
   border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.92rem;
   text-decoration: none;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
   border: 2px solid #ffffff;
@@ -694,9 +699,26 @@ body {
   white-space: nowrap;
 }
 
-.mhc-download-btn:hover {
+.mhc-download-btn.ext {
+  background: #f59e0b;
+  color: #0f172a;
+}
+
+.mhc-download-btn.ext:hover {
   background: #fbbf24;
   color: #000000;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.mhc-download-btn.plugin {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.mhc-download-btn.plugin:hover {
+  background: #38bdf8;
+  color: #042f2e;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }

@@ -26,6 +26,23 @@ function createApp(queueService, clientDistPath = path.join(__dirname, '../../cl
     return res.status(404).send('Không tìm thấy file mhc-extension.zip');
   });
 
+  // Direct download route for the MHC Plugin rar package
+  app.get(['/MHC_Plugin.rar', '/mhc_plugin.rar', '/MHC-Plugin.rar'], (req, res) => {
+    const candidates = [
+      path.join(clientDistPath, 'MHC_Plugin.rar'),
+      path.join(clientDistPath, 'mhc_plugin.rar'),
+      path.join(__dirname, '../../MHC_Plugin.rar'),
+      path.join(__dirname, '../../release/client/dist/MHC_Plugin.rar'),
+      path.join(__dirname, '../../client/public/MHC_Plugin.rar'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return res.download(p, 'MHC_Plugin.rar');
+      }
+    }
+    return res.status(404).send('Không tìm thấy file MHC_Plugin.rar');
+  });
+
   app.use('/api', createApiRouter(queueService));
 
   if (clientDistPath && fs.existsSync(clientDistPath)) {
